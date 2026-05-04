@@ -65,6 +65,12 @@ flowchart LR
 docker compose up --build
 ```
 
+If your environment uses standalone Compose (as in this setup), use:
+
+```bash
+docker-compose up --build
+```
+
 - Gateway: `http://localhost:8080/swagger-ui/index.html` — `POST /v1/payments`
 - Ledger history: `http://localhost:8081/swagger-ui/index.html` — `GET /v1/users/{userId}/transactions`
 - Health: `GET http://localhost:8080/health` (and `:8081`, `:8082`)
@@ -141,6 +147,20 @@ k6 run scripts/load/k6-payments.js
 ```
 
 Tune `GATEWAY_URL` if needed: `GATEWAY_URL=http://host:8080/v1/payments k6 run scripts/load/k6-payments.js`.
+
+## Load test evidence and PCAP submission
+
+- Load script in repo: `scripts/load/k6-payments.js`
+- Target profile: `250` iterations/sec for `4000s` (about `1,000,000` requests attempted)
+- Generated capture file (local run artifact): `swiftpay-8080.pcap`
+- Local packet preview command:
+  ```bash
+  tcpdump -nn -c 50 -r swiftpay-8080.pcap
+  ```
+
+In this machine, host-level capture on `lo0` required elevated permissions, so capture was taken via container namespace tooling while sending load to `transaction-gateway:8080`.
+
+Note: `.pcap`/`.pcapng` are git-ignored by design. Submit the PCAP file as an external artifact (zip/upload in submission portal or release asset) rather than committing it to source control.
 
 ## Kubernetes
 
