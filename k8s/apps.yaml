@@ -1,0 +1,102 @@
+# Example Kubernetes manifests for local clusters (Minikube, kind, k3d).
+# Provision PostgreSQL, Redis, and Kafka separately (Helm charts or operators),
+# then align hostnames in the ConfigMap below. For production, move DB_PASSWORD
+# (and similar) into a Secret instead of plain env vars.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: swiftpay
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: swiftpay-config
+  namespace: swiftpay
+data:
+  DB_HOST: "postgres.swiftpay.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "swiftpay"
+  DB_USER: "swiftpay"
+  DB_PASSWORD: "swiftpay"
+  REDIS_HOST: "redis.swiftpay.svc.cluster.local"
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP: "kafka.swiftpay.svc.cluster.local:9092"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledger-service
+  namespace: swiftpay
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: ledger-service }
+  template:
+    metadata:
+      labels: { app: ledger-service }
+    spec:
+      containers:
+        - name: ledger-service
+          image: swiftpay/ledger-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8081 }]
+          envFrom: [{ configMapRef: { name: swiftpay-config } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ledger-service
+  namespace: swiftpay
+spec:
+  selector: { app: ledger-service }
+  ports: [{ port: 8081, targetPort: 8081 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transaction-gateway
+  namespace: swiftpay
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: transaction-gateway }
+  template:
+    metadata:
+      labels: { app: transaction-gateway }
+    spec:
+      containers:
+        - name: transaction-gateway
+          image: swiftpay/transaction-gateway:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8080 }]
+          envFrom: [{ configMapRef: { name: swiftpay-config } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaction-gateway
+  namespace: swiftpay
+spec:
+  selector: { app: transaction-gateway }
+  ports: [{ port: 8080, targetPort: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-worker
+  namespace: swiftpay
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: analytics-worker }
+  template:
+    metadata:
+      labels: { app: analytics-worker }
+    spec:
+      containers:
+        - name: analytics-worker
+          image: swiftpay/analytics-worker:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8082 }]
+          envFrom: [{ configMapRef: { name: swiftpay-config } }]

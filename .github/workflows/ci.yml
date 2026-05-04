@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Compile, unit tests, integration tests
+        run: mvn -B verify
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images (verify Dockerfiles)
+        run: |
+          docker compose -f docker-compose.yml build transaction-gateway
+          docker compose -f docker-compose.yml build ledger-service
+          docker compose -f docker-compose.yml build analytics-worker
