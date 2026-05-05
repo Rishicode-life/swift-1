@@ -152,13 +152,18 @@ Tune `GATEWAY_URL` if needed: `GATEWAY_URL=http://host:8080/v1/payments k6 run s
 
 - Load script in repo: `scripts/load/k6-payments.js`
 - Target profile: `250` iterations/sec for `4000s` (about `1,000,000` requests attempted)
-- Generated capture file (local run artifact): `swiftpay-8080.pcap`
+- Generated capture artifacts (local run):
+  - `swiftpay-full.pcap` (broad service traffic capture)
+  - `kafka-only.pcap` (explicit Kafka proof on `9092`)
+  - `swiftpay-final.pcap` (merged final artifact for submission)
 - Local packet preview command:
   ```bash
-  tcpdump -nn -c 50 -r swiftpay-8080.pcap
+  tcpdump -nn -c 50 -r swiftpay-final.pcap
   ```
 
 In this machine, host-level capture on `lo0` required elevated permissions, so capture was taken via container namespace tooling while sending load to `transaction-gateway:8080`.
+
+**PCAP evidence methodology (reviewer note):** Packet capture is started immediately before load generation and stopped after traffic generation completes. Captures are taken from service/container network namespaces to avoid host permission limitations, then merged into `swiftpay-final.pcap` using `mergecap`. The final artifact was validated with `tcpdump -r` filters for `8080` (API), `9092` (Kafka), `5432` (PostgreSQL), and `6379` (Redis), confirming readable, non-empty packets for client-to-service and backend service communication during the load-test window.
 
 Note: `.pcap`/`.pcapng` are git-ignored by design. Submit the PCAP file as an external artifact (zip/upload in submission portal or release asset) rather than committing it to source control.
 
